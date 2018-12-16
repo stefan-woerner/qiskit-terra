@@ -17,11 +17,14 @@ from setuptools.dist import Distribution
 
 requirements = [
     "jsonschema>=2.6,<2.7",
-    "IBMQuantumExperience>=2.0.4",
+    "marshmallow>=2.16.3,<3",
+    "marshmallow_polyfield>=3.2,<4",
     "matplotlib>=2.1",
-    "networkx>=2.0",
+    "networkx>=2.2",
     "numpy>=1.13",
     "ply>=3.10",
+    "requests>=2.19",
+    "requests-ntlm>=1.1.0",
     "scipy>=0.19,!=0.19.1",
     "sympy>=1.0",
     "pillow>=4.2.1",
@@ -87,12 +90,11 @@ class BinaryDistribution(Distribution):
 
 
 setup(
-    name="qiskit",
+    name="qiskit-terra",
     version="0.7.0",
     description="Software for developing quantum computing programs",
-    long_description="""Qiskit is a software development kit for writing
-        quantum computing experiments, programs, and applications. Works with
-        Python 3.5 and 3.6""",
+    long_description="""Terra provides the foundations for Qiskit. It allows the user to write 
+        quantum circuits easily, and takes care of the constraints of real hardware.""",
     url="https://github.com/Qiskit/qiskit-terra",
     author="Qiskit Development Team",
     author_email="qiskit@us.ibm.com",
@@ -117,5 +119,9 @@ setup(
     cmdclass={
         'build': QasmSimulatorCppBuild,
     },
-    distclass=BinaryDistribution
+    distclass=BinaryDistribution,
+    extra_requires={
+        'visualization': ['matplotlib>=2.1'],
+        'native-simulators': ['qiskit-aer>=0.1']
+    }
 )

@@ -14,7 +14,7 @@ A collection of useful quantum information functions for states.
 """
 
 import numpy as np
-from qiskit import QISKitError
+from qiskit import QiskitError
 
 
 def basis_state(str_state, num):
@@ -27,7 +27,7 @@ def basis_state(str_state, num):
     Returns:
         ndarray:  state(2**num) a quantum state with basis basis state.
      Raises:
-        QISKitError: if the dimensions is wrong
+        QiskitError: if the dimensions is wrong
     """
     n = int(str_state, 2)
     if num >= len(str_state):
@@ -35,7 +35,7 @@ def basis_state(str_state, num):
         state[n] = 1
         return state
     else:
-        raise QISKitError('size of bitstring is greater than num.')
+        raise QiskitError('size of bitstring is greater than num.')
 
 
 def random_state(num):
@@ -48,7 +48,9 @@ def random_state(num):
     Returns:
         ndarray:  state(2**num) a random quantum state.
     """
-    x = np.random.random(1 << num)+0.00000001
+    # Random array over interval (0, 1]
+    x = np.random.random(1 << num)
+    x += x == 0
     x = -np.log(x)
     sumx = sum(x)
     phases = np.random.random(1 << num)*2.0*np.pi

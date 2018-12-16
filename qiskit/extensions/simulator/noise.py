@@ -8,9 +8,9 @@
 """
 Simulator command to toggle noise off or on.
 """
-from qiskit import Instruction
 from qiskit import QuantumCircuit
 from qiskit import QuantumRegister
+from qiskit.circuit import Instruction
 from qiskit.extensions._extensionerror import ExtensionError
 from qiskit.extensions.standard import header  # pylint: disable=unused-import
 
@@ -20,7 +20,7 @@ class Noise(Instruction):
 
     def __init__(self, switch, qubits, circ):
         """Create new noise instruction."""
-        super().__init__("noise", [switch], list(qubits), circ)
+        super().__init__("noise", [switch], list(qubits), [], circ)
 
     def inverse(self):
         """Special case. Return self."""
@@ -46,9 +46,8 @@ def noise(self, switch):
     """
     tuples = []
     if isinstance(self, QuantumCircuit):
-        for register in self.regs.values():
-            if isinstance(register, QuantumRegister):
-                tuples.append(register)
+        for register in self.qregs:
+            tuples.append(register)
     if not tuples:
         raise ExtensionError("no qubits for noise")
     if switch is None:

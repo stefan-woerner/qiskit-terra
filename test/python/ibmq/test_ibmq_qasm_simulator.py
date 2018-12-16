@@ -10,7 +10,6 @@
 """Test IBMQ online qasm simulator.
 TODO: Must expand tests. Re-evaluate after Aer."""
 
-from unittest import skip
 from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
 # pylint: disable=redefined-builtin
 from qiskit import compile
@@ -32,7 +31,7 @@ class TestIbmqQasmSimulator(QiskitTestCase):
 
         qr = QuantumRegister(1)
         cr = ClassicalRegister(1)
-        qc = QuantumCircuit(qr, cr)
+        qc = QuantumCircuit(qr, cr, name='qc')
         qc.h(qr[0])
         qc.measure(qr[0], cr[0])
         qobj = compile(qc, backend=backend, seed=73846087)
@@ -55,8 +54,8 @@ class TestIbmqQasmSimulator(QiskitTestCase):
 
         qr = QuantumRegister(2)
         cr = ClassicalRegister(2)
-        qcr1 = QuantumCircuit(qr, cr)
-        qcr2 = QuantumCircuit(qr, cr)
+        qcr1 = QuantumCircuit(qr, cr, name='qc1')
+        qcr2 = QuantumCircuit(qr, cr, name='qc2')
         qcr1.h(qr)
         qcr2.h(qr[0])
         qcr2.cx(qr[0], qr[1])
@@ -77,9 +76,6 @@ class TestIbmqQasmSimulator(QiskitTestCase):
         self.assertDictAlmostEqual(counts1, target1, threshold)
         self.assertDictAlmostEqual(counts2, target2, threshold)
 
-    # TODO: Investigate why this test is failing in master:
-    # https://github.com/Qiskit/qiskit-terra/issues/1016
-    @skip('Intermittent failure, see: https://github.com/Qiskit/qiskit-terra/issues/1016 ')
     @requires_qe_access
     def test_online_qasm_simulator_two_registers(self, qe_token, qe_url):
         """Test online_qasm_simulator_two_registers.
@@ -93,8 +89,8 @@ class TestIbmqQasmSimulator(QiskitTestCase):
         cr1 = ClassicalRegister(2)
         qr2 = QuantumRegister(2)
         cr2 = ClassicalRegister(2)
-        qcr1 = QuantumCircuit(qr1, qr2, cr1, cr2)
-        qcr2 = QuantumCircuit(qr1, qr2, cr1, cr2)
+        qcr1 = QuantumCircuit(qr1, qr2, cr1, cr2, name="circuit1")
+        qcr2 = QuantumCircuit(qr1, qr2, cr1, cr2, name="circuit2")
         qcr1.x(qr1[0])
         qcr2.x(qr2[1])
         qcr1.measure(qr1[0], cr1[0])
@@ -106,7 +102,7 @@ class TestIbmqQasmSimulator(QiskitTestCase):
         qcr2.measure(qr2[0], cr2[0])
         qcr2.measure(qr2[1], cr2[1])
         shots = 1024
-        qobj = compile([qcr1, qcr2], backend, seed=8458, shots=shots)
+        qobj = compile([qcr1, qcr2], backend, seed=8458, shots=shots, seed_mapper=88434)
         job = backend.run(qobj)
         result = job.result()
         result1 = result.get_counts(qcr1)

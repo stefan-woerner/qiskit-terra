@@ -8,18 +8,18 @@
 """
 Barrier instruction.
 """
-from qiskit import Instruction
 from qiskit import QuantumCircuit
 from qiskit import QuantumRegister
+from qiskit.circuit import Instruction
 from qiskit.extensions.standard import header  # pylint: disable=unused-import
 
 
 class Barrier(Instruction):
     """Barrier instruction."""
 
-    def __init__(self, qubits, circ):
+    def __init__(self, qubits, circ=None):
         """Create new barrier instruction."""
-        super().__init__("barrier", [], list(qubits), circ)
+        super().__init__("barrier", [], list(qubits), [], circ)
 
     def inverse(self):
         """Special case. Return self."""
@@ -27,27 +27,27 @@ class Barrier(Instruction):
 
     def reapply(self, circ):
         """Reapply this instruction to corresponding qubits in circ."""
-        self._modifiers(circ.barrier(*self.arg))
+        self._modifiers(circ.barrier(*self.qargs))
 
 
-def barrier(self, *args):
+def barrier(self, *qargs):
     """Apply barrier to circuit.
-    If args is None, applies to all the qbits.
+    If qargs is None, applies to all the qbits.
     Args is a list of QuantumRegister or single qubits.
     For QuantumRegister, applies barrier to all the qbits in that register."""
     qubits = []
 
-    if not args:  # None
-        for qreg in self.get_qregs().values():
+    if not qargs:  # None
+        for qreg in self.qregs:
             for j in range(qreg.size):
                 qubits.append((qreg, j))
 
-    for arg in args:
-        if isinstance(arg, QuantumRegister):
-            for j in range(arg.size):
-                qubits.append((arg, j))
+    for qarg in qargs:
+        if isinstance(qarg, QuantumRegister):
+            for j in range(qarg.size):
+                qubits.append((qarg, j))
         else:
-            qubits.append(arg)
+            qubits.append(qarg)
 
     self._check_dups(qubits)
     for qubit in qubits:

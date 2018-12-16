@@ -9,6 +9,7 @@
 """
 Test the registration and credentials features of the wrapper.
 """
+import warnings
 import os
 from contextlib import contextmanager
 from tempfile import NamedTemporaryFile
@@ -16,7 +17,7 @@ from unittest import skipIf
 from unittest.mock import patch
 
 import qiskit
-from qiskit import QISKitError
+from qiskit import QiskitError
 from qiskit.backends.ibmq.credentials import (
     _configrc, _qconfig, discover_credentials, store_credentials, Credentials,
     read_credentials_from_qiskitrc)
@@ -167,7 +168,7 @@ class TestCredentials(QiskitTestCase):
     def test_autoregister_no_credentials(self):
         """Test register() with no credentials available."""
         with no_file('Qconfig.py'), custom_qiskitrc(), no_envs():
-            with self.assertRaises(QISKitError) as context_manager:
+            with self.assertRaises(QiskitError) as context_manager:
                 qiskit.IBMQ.load_accounts()
 
         self.assertIn('No IBMQ credentials found', str(context_manager.exception))
@@ -179,10 +180,12 @@ class TestCredentials(QiskitTestCase):
 
         with custom_qiskitrc():
             store_credentials(credentials)
+            # Cause all warnings to always be triggered.
+            warnings.simplefilter("always")
             # Attempt overwriting.
-            with self.assertRaises(QISKitError) as context_manager:
+            with warnings.catch_warnings(record=True) as w:
                 store_credentials(credentials)
-            self.assertIn('already present', str(context_manager.exception))
+                self.assertIn('already present', str(w[0]))
 
             with no_file('Qconfig.py'), no_envs(), mock_ibmq_provider():
                 # Attempt overwriting.

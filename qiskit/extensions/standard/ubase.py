@@ -10,14 +10,14 @@
 """
 Element of SU(2).
 """
-from qiskit import Gate
-from qiskit import InstructionSet
-from qiskit import QuantumCircuit
-from qiskit import QuantumRegister
+from qiskit.circuit import Gate
+from qiskit.circuit import QuantumCircuit
+from qiskit.circuit import InstructionSet
+from qiskit.circuit import QuantumRegister
 from qiskit.extensions.standard import header  # pylint: disable=unused-import
 
 
-class UBase(Gate):
+class UBase(Gate):  # pylint: disable=abstract-method
     """Element of SU(2)."""
 
     def __init__(self, theta, phi, lam, qubit, circ=None):
@@ -37,7 +37,7 @@ class UBase(Gate):
     def reapply(self, circ):
         """Reapply this gate to corresponding qubits in circ."""
         self._modifiers(circ.u_base(self.param[0], self.param[1], self.param[2],
-                                    self.arg[0]))
+                                    self.qargs[0]))
 
 
 def u_base(self, theta, phi, lam, q):

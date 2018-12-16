@@ -66,8 +66,8 @@ class IBMQProvider(BaseProvider):
 
         # Special handling of the `name` parameter, to support alias resolution.
         if name:
-            aliases = self.aliased_backend_names()
-            aliases.update(self.deprecated_backend_names())
+            aliases = self._aliased_backend_names()
+            aliases.update(self._deprecated_backend_names())
             name = aliases.get(name, name)
 
         # Aggregate the list of filtered backends.
@@ -79,7 +79,7 @@ class IBMQProvider(BaseProvider):
         return backends
 
     @staticmethod
-    def deprecated_backend_names():
+    def _deprecated_backend_names():
         """Returns deprecated backend names."""
         return {
             'ibmqx_qasm_simulator': 'ibmq_qasm_simulator',
@@ -88,7 +88,7 @@ class IBMQProvider(BaseProvider):
             }
 
     @staticmethod
-    def aliased_backend_names():
+    def _aliased_backend_names():
         """Returns aliased backend names."""
         return {
             'ibmq_5_yorktown': 'ibmqx2',
@@ -116,7 +116,7 @@ class IBMQProvider(BaseProvider):
 
         self._append_account(credentials)
 
-    def save_account(self, token, url=QE_URL, **kwargs):
+    def save_account(self, token, url=QE_URL, overwrite=False, **kwargs):
         """Save the account to disk for future use.
 
         Login into Quantum Experience or IBMQ using the provided credentials,
@@ -127,20 +127,13 @@ class IBMQProvider(BaseProvider):
             token (str): Quantum Experience or IBM Q API token.
             url (str): URL for Quantum Experience or IBM Q (for IBM Q,
                 including the hub, group and project in the URL).
+            overwrite (bool): overwrite existing credentials.
             **kwargs (dict):
                 * proxies (dict): Proxy configuration for the API.
                 * verify (bool): If False, ignores SSL certificates errors
         """
         credentials = Credentials(token, url, **kwargs)
-
-        # Check if duplicated credentials are already stored. By convention,
-        # we assume (hub, group, project) is always unique.
-        stored_credentials = read_credentials_from_qiskitrc()
-
-        if credentials.unique_id() in stored_credentials.keys():
-            warnings.warn('Credentials are already stored.')
-        else:
-            store_credentials(credentials)
+        store_credentials(credentials, overwrite=overwrite)
 
     def active_accounts(self):
         """List all accounts currently in the session.

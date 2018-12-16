@@ -7,15 +7,15 @@
 
 # pylint: disable=invalid-name,missing-docstring
 
-"""Quick program to test the qi states tools modules."""
+"""Quick program to test the quantum information states modules."""
 
 import unittest
 import numpy as np
-from qiskit import execute, QuantumRegister, QuantumCircuit, Aer
+from qiskit import execute, QuantumRegister, QuantumCircuit, BasicAer
 
-from qiskit.quantum_info.states import basis_state, random_state
-from qiskit.quantum_info.states import state_fidelity
-from qiskit.quantum_info.states import projector
+from qiskit.quantum_info import basis_state, random_state
+from qiskit.quantum_info import state_fidelity
+from qiskit.quantum_info import projector
 
 from ..common import QiskitTestCase
 
@@ -74,7 +74,7 @@ class TestStates(QiskitTestCase):
         q = QuantumRegister(3)
         qc = QuantumCircuit(q)
         qc.initialize(state, [q[0], q[1], q[2]])
-        backend = Aer.get_backend('statevector_simulator')
+        backend = BasicAer.get_backend('statevector_simulator')
         qc_state = execute(qc, backend).result().get_statevector(qc)
         self.assertAlmostEqual(state_fidelity(qc_state, state), 1.0, places=7)
 
@@ -94,7 +94,7 @@ class TestStates(QiskitTestCase):
         q = QuantumRegister(3)
         qc = QuantumCircuit(q)
         qc.initialize(state, [q[0], q[1], q[2]])
-        backend = Aer.get_backend('statevector_simulator')
+        backend = BasicAer.get_backend('statevector_simulator')
         qc_state = execute(qc, backend).result().get_statevector(qc)
         self.assertAlmostEqual(state_fidelity(qc_state, state), 1.0, places=7)
 
