@@ -88,15 +88,13 @@ class DAGCircuit:
         # Map of creg name to ClassicalRegister object
         self.cregs = OrderedDict()
 
-        # layout of dag quantum registers on the chip
-        # TODO: rethink this. doesn't seem related to concept of DAG,
-        # but if we want to be able to generate qobj
-        # directly from a dag, we need it.
-        self.layout = []
-
     def get_qubits(self):
         """Return a list of qubits as (QuantumRegister, index) pairs."""
         return [(v, i) for k, v in self.qregs.items() for i in range(v.size)]
+
+    def get_bits(self):
+        """Return a list of bits as (ClassicalRegister, index) pairs."""
+        return [(v, i) for k, v in self.cregs.items() for i in range(v.size)]
 
     # TODO: unused function. is it needed?
     def rename_register(self, regname, newname):
@@ -1218,12 +1216,8 @@ class DAGCircuit:
     def get_op_nodes(self, op=None, data=False):
         """Get the list of "op" nodes in the dag.
 
-        Note: this method returns all nodes of a given op type (e.g. HGate),
-        and does not look at the gate operands. Because in the future, the
-        operands won't even be part of the gate.
-
         Args:
-            op (Instruction or None): op nodes to return. if op=None, return
+            op (Type): Instruction subclass op nodes to return. if op=None, return
                 all op nodes.
             data (bool): Default: False. If True, return a list of tuple
                 (node_id, node_data). If False, return a list of int (node_id)
@@ -1234,9 +1228,7 @@ class DAGCircuit:
         nodes = []
         for node_id, node_data in self.multi_graph.nodes(data=True):
             if node_data["type"] == "op":
-                if op is None:
-                    nodes.append((node_id, node_data))
-                elif type(node_data["op"]) is type(op):
+                if op is None or isinstance(node_data["op"], op):
                     nodes.append((node_id, node_data))
         if not data:
             nodes = [n[0] for n in nodes]
@@ -1280,6 +1272,19 @@ class DAGCircuit:
                 for cx_id in self.get_named_nodes(cx_name):
                     cxs_nodes.append(self.multi_graph.node[cx_id])
         return cxs_nodes
+
+    def successors(self, node):
+        """Returns the successors of a node."""
+        return self.multi_graph.successors(node)
+
+    def quantum_successors(self, node):
+        """Returns the successors of a node that are connected by a quantum edge"""
+        successors = []
+        for successor in self.successors(node):
+            if isinstance(self.multi_graph.get_edge_data(node, successor, key=0)['wire'][0],
+                          QuantumRegister):
+                successors.append(successor)
+        return successors
 
     def _remove_op_node(self, n):
         """Remove an operation node n.
@@ -1467,9 +1472,9 @@ class DAGCircuit:
         # Iterate through the nodes of self in topological order
         # and form tuples containing sequences of gates
         # on the same qubit(s).
-        ts = list(self.node_nums_in_topological_order())
-        nodes_seen = dict(zip(ts, [False] * len(ts)))
-        for node in ts:
+        tops_node = list(self.node_nums_in_topological_order())
+        nodes_seen = dict(zip(tops_node, [False] * len(tops_node)))
+        for node in tops_node:
             nd = self.multi_graph.node[node]
             if nd["type"] == "op" and nd["name"] in namelist \
                     and not nodes_seen[node]:
