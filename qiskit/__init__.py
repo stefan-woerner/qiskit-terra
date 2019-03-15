@@ -6,24 +6,25 @@
 # the LICENSE.txt file in the root directory of this source tree.
 
 # pylint: disable=wrong-import-order
-# pylint: disable=redefined-builtin
+
 
 """Main Qiskit public functionality."""
 
-import os
 import pkgutil
 
 # First, check for required Python and API version
 from . import _util
 
 # qiskit errors operator
-from .qiskiterror import QiskitError, QISKitError
+from .exceptions import QiskitError
 
 # The main qiskit operators
 from qiskit.circuit import ClassicalRegister
 from qiskit.circuit import QuantumRegister
 from qiskit.circuit import QuantumCircuit
-from .tools.compiler import (compile, execute)
+# pylint: disable=redefined-builtin
+from qiskit.tools.compiler import compile  # TODO remove after 0.8
+from qiskit.execute import (execute_circuits, execute)
 
 # The qiskit.extensions.x imports needs to be placed here due to the
 # mechanism for adding gates dynamically.
@@ -38,23 +39,18 @@ import qiskit.circuit.reset
 __path__ = pkgutil.extend_path(__path__, __name__)
 
 # Please note these are global instances, not modules.
-from qiskit.providers.ibmq import IBMQ
-from qiskit.providers.builtinsimulators import BasicAer
-from qiskit.providers.legacysimulators import LegacySimulators
+from qiskit.providers.basicaer import BasicAer
 
-# Try to import the Aer provider if th Aer element is installed.
+# Try to import the Aer provider if installed.
 try:
     from qiskit.providers.aer import Aer
 except ImportError:
     pass
+# Try to import the IBMQ provider if installed.
+try:
+    from qiskit.providers.ibmq import IBMQ
+except ImportError:
+    pass
 
-# TODO: Remove
-from .wrapper._wrapper import (load_qasm_string, load_qasm_file)
-
-# Import the wrapper, to make it available when doing "import qiskit".
-from . import wrapper
-from . import tools
-
-ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-with open(os.path.join(ROOT_DIR, "VERSION.txt"), "r") as version_file:
-    __version__ = version_file.read().strip()
+from .version import __version__
+from .version import __qiskit_version__

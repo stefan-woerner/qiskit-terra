@@ -8,10 +8,10 @@
 """
 Barrier instruction.
 """
-from qiskit import QuantumCircuit
-from qiskit import QuantumRegister
+from qiskit.circuit import QuantumCircuit
+from qiskit.circuit import CompositeGate
+from qiskit.circuit import QuantumRegister
 from qiskit.circuit import Instruction
-from qiskit.extensions.standard import header  # pylint: disable=unused-import
 
 
 class Barrier(Instruction):
@@ -43,16 +43,16 @@ def barrier(self, *qargs):
                 qubits.append((qreg, j))
 
     for qarg in qargs:
-        if isinstance(qarg, QuantumRegister):
-            for j in range(qarg.size):
-                qubits.append((qarg, j))
+        if isinstance(qarg, (QuantumRegister, list)):
+            if isinstance(qarg, QuantumRegister):
+                qubits.extend([(qarg, j) for j in range(qarg.size)])
+            else:
+                qubits.extend(qarg)
         else:
             qubits.append(qarg)
 
-    self._check_dups(qubits)
-    for qubit in qubits:
-        self._check_qubit(qubit)
     return self._attach(Barrier(qubits, self))
 
 
 QuantumCircuit.barrier = barrier
+CompositeGate.barrier = barrier

@@ -7,11 +7,10 @@
 
 """Helper function for converting qobj to a list of circuits"""
 
-from qiskit.circuit import classicalregister as cr
-from qiskit.circuit import quantumcircuit as qc
-from qiskit.circuit import quantumregister as qr
+from qiskit.circuit import QuantumCircuit, ClassicalRegister, QuantumRegister
 
 
+# TODO: This is broken for conditionals. Will fix after circuits_2_qobj pr
 def qobj_to_circuits(qobj):
     """Return a list of QuantumCircuit object(s) from a qobj
 
@@ -24,15 +23,13 @@ def qobj_to_circuits(qobj):
     if qobj.experiments:
         circuits = []
         for x in qobj.experiments:
-            quantum_registers = [
-                qr.QuantumRegister(
-                    i[1], name=i[0]) for i in x.header.qreg_sizes]
-            classical_registers = [
-                cr.ClassicalRegister(
-                    i[1], name=i[0]) for i in x.header.creg_sizes]
-            circuit = qc.QuantumCircuit(*quantum_registers,
-                                        *classical_registers,
-                                        name=x.header.name)
+            quantum_registers = [QuantumRegister(i[1], name=i[0])
+                                 for i in x.header.qreg_sizes]
+            classical_registers = [ClassicalRegister(i[1], name=i[0])
+                                   for i in x.header.creg_sizes]
+            circuit = QuantumCircuit(*quantum_registers,
+                                     *classical_registers,
+                                     name=x.header.name)
             qreg_dict = {}
             creg_dict = {}
             for reg in quantum_registers:
@@ -42,19 +39,30 @@ def qobj_to_circuits(qobj):
             for i in x.instructions:
                 instr_method = getattr(circuit, i.name)
                 qubits = []
-                for qubit in i.qubits:
-                    qubit_label = x.header.qubit_labels[qubit]
-                    qubits.append(
-                        qreg_dict[qubit_label[0]][qubit_label[1]])
+                try:
+                    for qubit in i.qubits:
+                        qubit_label = x.header.qubit_labels[qubit]
+                        qubits.append(
+                            qreg_dict[qubit_label[0]][qubit_label[1]])
+                except Exception:  # pylint: disable=broad-except
+                    pass
                 clbits = []
-                for clbit in i.memory:
-                    clbit_label = x.header.clbit_labels[clbit]
-                    clbits.append(
-                        creg_dict[clbit_label[0]][clbit_label[1]])
-                if i.name in ['snapshot', 'save', 'load', 'noise']:
-                    instr_method(*i.params)
+                try:
+                    for clbit in i.memory:
+                        clbit_label = x.header.clbit_labels[clbit]
+                        clbits.append(
+                            creg_dict[clbit_label[0]][clbit_label[1]])
+                except Exception:  # pylint: disable=broad-except
+                    pass
+                params = []
+                try:
+                    params = i.params
+                except Exception:  # pylint: disable=broad-except
+                    pass
+                if i.name in ['snapshot']:
+                    instr_method(*params)
                 else:
-                    instr_method(*i.params, *qubits, *clbits)
+                    instr_method(*params, *qubits, *clbits)
             circuits.append(circuit)
         return circuits
     return None

@@ -8,22 +8,22 @@
 """
 Composite gate, a container for a sequence of unitary gates.
 """
-from qiskit.qiskiterror import QiskitError
+from qiskit.exceptions import QiskitError
 from .gate import Gate
 
 
 class CompositeGate(Gate):  # pylint: disable=abstract-method
     """Composite gate, a sequence of unitary gates."""
 
-    def __init__(self, name, param, qargs, circuit=None, inverse_name=None):
+    def __init__(self, name, params, qargs, circuit=None, inverse_name=None):
         """Create a new composite gate.
 
         name = instruction name string
-        param = list of real parameters
+        params = list of real parameters
         qarg = list of pairs (QuantumRegister, index)
         circ = QuantumCircuit or CompositeGate containing this gate
         """
-        super().__init__(name, param, qargs, circuit)
+        super().__init__(name, params, qargs, circuit)
         self.data = []  # gate sequence defining the composite unitary
         self.inverse_flag = False
         self.inverse_name = inverse_name or (name + 'dg')
@@ -66,22 +66,6 @@ class CompositeGate(Gate):  # pylint: disable=abstract-method
                 lambda x: (x[0].name, x[1]), self.qargs):
             raise QiskitError("qubit '%s[%d]' not argument of gate"
                               % (qubit[0].name, qubit[1]))
-
-    def _check_qreg(self, register):
-        """Raise exception.
-
-        if quantum register is not in this gate's circuit.
-        """
-        self.check_circuit()
-        self.circuit._check_qreg(register)
-
-    def _check_creg(self, register):
-        """Raise exception.
-
-        if classical register is not in this gate's circuit.
-        """
-        self.check_circuit()
-        self.circuit._check_creg(register)
 
     def _check_dups(self, qubits):
         """Raise exception.

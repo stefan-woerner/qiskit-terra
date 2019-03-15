@@ -7,9 +7,9 @@
 
 """Utils for transpiler."""
 import os
-from ._passmanager import PassManager, FlowController
-from ._propertyset import PropertySet
-from ._transpilererror import TranspilerError, TranspilerAccessError, MapperError
-from ._fencedobjs import FencedDAGCircuit, FencedPropertySet
-from ._basepasses import AnalysisPass, TransformationPass
-from ._transpiler import transpile, transpile_dag
+from .passmanager import PassManager, FlowController
+from .propertyset import PropertySet
+from .exceptions import TranspilerError, TranspilerAccessError
+from .fencedobjs import FencedDAGCircuit, FencedPropertySet
+from .basepasses import AnalysisPass, TransformationPass
+from .transpiler import transpile, transpile_dag

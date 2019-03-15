@@ -22,7 +22,7 @@ A rule-based analysis would be potentially faster, but more limited.
 from collections import defaultdict
 import numpy as np
 
-from qiskit.transpiler._basepasses import AnalysisPass
+from qiskit.transpiler.basepasses import AnalysisPass
 
 
 class CommutationAnalysis(AnalysisPass):
@@ -67,7 +67,7 @@ class CommutationAnalysis(AnalysisPass):
 
                     self.property_set['commutation_set'][(node, edge_name)] = -1
 
-                if dag.multi_graph.node[edge[1]]['type'] == "out":
+                if dag.node(edge[1])['type'] == "out":
                     self.wire_op[edge_name].append(edge[1])
 
         # With traversing the circuit in topological order,
@@ -84,7 +84,7 @@ class CommutationAnalysis(AnalysisPass):
 
                 if node not in self.property_set['commutation_set'][wire_name][-1]:
                     test_node = self.property_set['commutation_set'][wire_name][-1][-1]
-                    if _commute(dag.multi_graph.node[node], dag.multi_graph.node[test_node]):
+                    if _commute(dag.node(node), dag.node(test_node)):
                         self.property_set['commutation_set'][wire_name][-1].append(node)
 
                     else:
@@ -134,7 +134,7 @@ def _gate_master_def(name, para=None):
     if name == 'tdag':
         return np.array([[1.0, 0.0],
                          [0.0, -np.exp(1j * np.pi / 4.0)]], dtype=np.complex)
-    if name == 'rz' or name == 'u1':
+    if name in ('rz', 'u1'):
         return np.array([[np.exp(-1j * float(para[0]) / 2), 0],
                          [0, np.exp(1j * float(para[0]) / 2)]], dtype=np.complex)
     if name == 'rx':
@@ -204,7 +204,7 @@ def _calc_product(node1, node2):
 
         else:
 
-            mat = _gate_master_def(name=node['name'], para=node['op'].param)
+            mat = _gate_master_def(name=node['name'], para=node['op'].params)
             node_num = "{0}[{1}]".format(str(node["qargs"][0][0].name),
                                          str(node["qargs"][0][1]))
             qstate_list[wires.index(node_num)] = mat

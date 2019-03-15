@@ -5,104 +5,71 @@
 # This source code is licensed under the Apache License, Version 2.0 found in
 # the LICENSE.txt file in the root directory of this source tree.
 
-"""Helper function for converting a list of circuits to a qobj"""
-from copy import deepcopy
-import uuid
+"""Compile function for converting a list of circuits to the qobj"""
+import warnings
 
-from qiskit.qobj import Qobj, QobjConfig, QobjExperiment, QobjItem, QobjHeader
-from qiskit.circuit.quantumcircuit import QuantumCircuit
+from qiskit.qobj import QobjHeader
+from qiskit.compiler.run_config import RunConfig
+from qiskit.compiler import assemble_circuits
 
 
-def circuits_to_qobj(circuits, backend_name, config=None, shots=1024,
-                     max_credits=10, qobj_id=None, basis_gates=None, coupling_map=None,
-                     seed=None, memory=False):
+def circuits_to_qobj(circuits, qobj_header=None, run_config=None,
+                     qobj_id=None, backend_name=None,
+                     config=None, shots=None, max_credits=None,
+                     basis_gates=None,
+                     coupling_map=None, seed=None, memory=None):
     """Convert a list of circuits into a qobj.
 
     Args:
         circuits (list[QuantumCircuits] or QuantumCircuit): circuits to compile
-        backend_name (str): name of runner backend
-        config (dict): dictionary of parameters (e.g. noise) used by runner
-        shots (int): number of repetitions of each circuit, for sampling
-        max_credits (int): maximum credits to use
-        qobj_id (int): identifier for the generated qobj
-        basis_gates (list[str])): basis gates for the experiment
-        coupling_map (list): coupling map (perhaps custom) to target in mapping
-        seed (int): random seed for simulators
-        memory (bool): if True, per-shot measurement bitstrings are returned as well
+        qobj_header (QobjHeader): header to pass to the results
+        run_config (RunConfig): RunConfig object
+
+        qobj_id (int): TODO: delete after qiskit-terra 0.8
+        backend_name (str): TODO: delete after qiskit-terra 0.8
+        config (dict): TODO: delete after qiskit-terra 0.8
+        shots (int): TODO: delete after qiskit-terra 0.8
+        max_credits (int): TODO: delete after qiskit-terra 0.8
+        basis_gates (str): TODO: delete after qiskit-terra 0.8
+        coupling_map (list): TODO: delete after qiskit-terra 0.8
+        seed (int): TODO: delete after qiskit-terra 0.8
+        memory (bool): TODO: delete after qiskit-terra 0.8
 
     Returns:
         Qobj: the Qobj to be run on the backends
     """
-    # TODO: the following will be removed from qobj and thus removed here:
-    # `basis_gates`, `coupling_map`
+    warnings.warn('circuits_to_qobj is deprecated and will be removed in Qiskit Terra 0.9. '
+                  'Use qiskit.compiler.assemble_circuits() to serialize circuits into a qobj.',
+                  DeprecationWarning)
 
-    # Step 1: create the Qobj, with empty experiments.
-    # Copy the configuration: the values in `config` have preference
-    qobj_config = deepcopy(config or {})
-    qobj_config.update({'shots': shots,
-                        'max_credits': max_credits,
-                        'memory_slots': 0,
-                        'memory': memory})
+    qobj_header = qobj_header or QobjHeader()
+    run_config = run_config or RunConfig()
 
-    qobj = Qobj(qobj_id=qobj_id or str(uuid.uuid4()),
-                config=QobjConfig(**qobj_config),
-                experiments=[],
-                header=QobjHeader(backend_name=backend_name))
+    if backend_name:
+        warnings.warn('backend_name is not required anymore', DeprecationWarning)
+        qobj_header.backend_name = backend_name
+    if config:
+        warnings.warn('config is not used anymore. Set all configs in '
+                      'run_config.', DeprecationWarning)
+    if shots:
+        warnings.warn('shots is not used anymore. Set it via run_config.', DeprecationWarning)
+        run_config.shots = shots
+    if basis_gates:
+        warnings.warn('basis_gates was unused and will be removed.', DeprecationWarning)
+    if coupling_map:
+        warnings.warn('coupling_map was unused and will be removed.', DeprecationWarning)
     if seed:
-        qobj.config.seed = seed
+        warnings.warn('seed is not used anymore. Set it via run_config', DeprecationWarning)
+        run_config.seed = seed
+    if memory:
+        warnings.warn('memory is not used anymore. Set it via run_config', DeprecationWarning)
+        run_config.memory = memory
+    if max_credits:
+        warnings.warn('max_credits is not used anymore. Set it via run_config', DeprecationWarning)
+        run_config.max_credits = max_credits
+    if qobj_id:
+        warnings.warn('qobj_id is not used anymore', DeprecationWarning)
 
-    if isinstance(circuits, QuantumCircuit):
-        circuits = [circuits]
-
-    for circuit in circuits:
-        qobj.experiments.append(_circuit_to_experiment(circuit,
-                                                       config,
-                                                       basis_gates,
-                                                       coupling_map))
-
-    # Update the global `memory_slots` and `n_qubits` values.
-    qobj.config.memory_slots = max(experiment.config.memory_slots for
-                                   experiment in qobj.experiments)
-
-    qobj.config.n_qubits = max(experiment.config.n_qubits for
-                               experiment in qobj.experiments)
+    qobj = assemble_circuits(circuits, qobj_header, run_config)
 
     return qobj
-
-
-def _circuit_to_experiment(circuit, config=None, basis_gates=None,
-                           coupling_map=None):
-    """Helper function for dags to qobj in parallel (if available).
-
-    Args:
-        circuit (QuantumCircuit): QuantumCircuit to convert into qobj experiment
-        config (dict): dictionary of parameters (e.g. noise) used by runner
-        basis_gates (list[str])): basis gates for the experiment
-        coupling_map (list): coupling map (perhaps custom) to target in mapping
-
-    Returns:
-        Qobj: Qobj to be run on the backends
-    """
-    # pylint: disable=unused-argument
-    #  TODO: if arguments are really unused, consider changing the signature
-    # TODO: removed the DAG from this function
-    from qiskit.converters import circuit_to_dag
-    from qiskit.unroll import DagUnroller, JsonBackend
-    dag = circuit_to_dag(circuit)
-    json_circuit = DagUnroller(dag, JsonBackend(dag.basis)).execute()
-    # Step 3a: create the Experiment based on json_circuit
-    experiment = QobjExperiment.from_dict(json_circuit)
-    # Step 3b: populate the Experiment configuration and header
-    experiment.header.name = circuit.name
-    experiment_config = deepcopy(config or {})
-    experiment_config.update({
-        'memory_slots': sum([creg.size for creg in dag.cregs.values()]),
-        'n_qubits': sum([qreg.size for qreg in dag.qregs.values()])
-        })
-    experiment.config = QobjItem(**experiment_config)
-
-    # set eval_symbols=True to evaluate each symbolic expression
-    # TODO: after transition to qobj, we can drop this
-    experiment.header.compiled_circuit_qasm = circuit.qasm()
-    # Step 3c: add the Experiment to the Qobj
-    return experiment
