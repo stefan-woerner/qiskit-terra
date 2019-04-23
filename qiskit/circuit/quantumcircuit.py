@@ -31,11 +31,18 @@ class QuantumCircuit:
 
     def __init__(self, *regs, name=None):
         """Create a new circuit.
-
         A circuit is a list of instructions bound to some registers.
-
         Args:
-            *regs (Registers): registers to include in the circuit.
+            *regs (list(Register) or list(Int)): To be included in the circuit.
+                  - If [Register], the QuantumRegister and/or ClassicalRegister
+                    to include in the circuit.
+                    E.g.: QuantumCircuit(QuantumRegister(4))
+                          QuantumCircuit(QuantumRegister(4), ClassicalRegister(3))
+                          QuantumCircuit(QuantumRegister(4, 'qr0'), QuantumRegister(2, 'qr1'))
+                  - If [Int], the amount of qubits and/or classical bits to include
+                  in the circuit. It can be (Int, ) or (Int, Int).
+                    E.g.: QuantumCircuit(4) # A QuantumCircuit with 4 qubits
+                          QuantumCircuit(4, 3) # A QuantumCircuit with 4 qubits and 3 classical bits
             name (str or None): the name of the quantum circuit. If
                 None, an automatically generated string will be assigned.
 
@@ -199,6 +206,18 @@ class QuantumCircuit:
             self.append(*instruction_context)
         return self
 
+    def qubits(self):
+        """
+        Returns a list of quantum bits in the order that the registers had been added.
+        """
+        return [qbit for qreg in self.qregs for qbit in qreg]
+
+    def clbits(self):
+        """
+        Returns a list of classical bits in the order that the registers had been added.
+        """
+        return [cbit for creg in self.cregs for cbit in creg]
+
     def __add__(self, rhs):
         """Overload + to implement self.combine."""
         return self.combine(rhs)
@@ -257,12 +276,11 @@ class QuantumCircuit:
                 these_symbols = set(param.free_symbols)
                 new_symbols = these_symbols - current_symbols
                 common_symbols = these_symbols & current_symbols
-                if new_symbols:
-                    for symbol in new_symbols:
-                        self._variable_table[symbol] = [(instruction, param_index)]
-                if common_symbols:
-                    for symbol in common_symbols:
-                        self._variable_table[symbol].append((instruction, param_index))
+
+                for symbol in new_symbols:
+                    self._variable_table[symbol] = [(instruction, param_index)]
+                for symbol in common_symbols:
+                    self._variable_table[symbol].append((instruction, param_index))
 
         return instruction
 
@@ -272,6 +290,22 @@ class QuantumCircuit:
 
     def add_register(self, *regs):
         """Add registers."""
+        if not regs:
+            return
+
+        if any([isinstance(reg, int) for reg in regs]):
+            # QuantumCircuit defined without registers
+            if len(regs) == 1 and isinstance(regs[0], int):
+                # QuantumCircuit with anonymous quantum wires e.g. QuantumCircuit(2)
+                regs = (QuantumRegister(regs[0], 'q'),)
+            elif len(regs) == 2 and all([isinstance(reg, int) for reg in regs]):
+                # QuantumCircuit with anonymous wires e.g. QuantumCircuit(2, 3)
+                regs = (QuantumRegister(regs[0], 'q'), ClassicalRegister(regs[1], 'c'))
+            else:
+                raise QiskitError("QuantumCircuit parameters can be Registers or Integers."
+                                  " If Integers, up to 2 arguments. QuantumCircuit was called"
+                                  " with %s." % (regs,))
+
         for register in regs:
             if register in self.qregs or register in self.cregs:
                 raise QiskitError("register name \"%s\" already exists"
@@ -676,6 +710,14 @@ class QuantumCircuit:
         for variable in value_dict:
             new_circuit.variable_table[variable] = value_dict
         return new_circuit
+
+    @property
+    def unassigned_variables(self):
+        """Returns a set containing any variables which have not yet been assigned."""
+        return {variable
+                for variable, parameterized_instructions in self.variable_table.items()
+                if any(instruction.params[parameter_index].free_symbols
+                       for instruction, parameter_index in parameterized_instructions)}
 
 
 def _circuit_from_qasm(qasm):
