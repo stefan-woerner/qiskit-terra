@@ -31,11 +31,13 @@ import time
 
 from qiskit.result import Result
 from qiskit.providers import BaseBackend, BaseJob
-from qiskit.providers.models import BackendProperties, BackendConfiguration, PulseDefaults
-from qiskit.providers.models.backendconfiguration import GateConfig
+from qiskit.providers.models import (BackendProperties, GateConfig,
+                                     QasmBackendConfiguration, PulseBackendConfiguration,
+                                     PulseDefaults, Command, UchannelLO)
 from qiskit.qobj import (QasmQobj, QobjExperimentHeader, QobjHeader,
                          QasmQobjInstruction, QasmQobjExperimentConfig,
-                         QasmQobjExperiment, QasmQobjConfig)
+                         QasmQobjExperiment, QasmQobjConfig, PulseLibraryItem,
+                         PulseQobjInstruction)
 from qiskit.providers.jobstatus import JobStatus
 from qiskit.providers.baseprovider import BaseProvider
 from qiskit.providers.exceptions import QiskitBackendNotFoundError
@@ -53,12 +55,15 @@ class FakeProvider(BaseProvider):
     def get_backend(self, name=None, **kwargs):
         backend = self._backends[0]
         if name:
+            # pylint: disable=no-member
             filtered_backends = [backend for backend in self._backends
                                  if backend.name() == name]
+            # pylint: enable=no-member
             if not filtered_backends:
                 raise QiskitBackendNotFoundError()
-            else:
-                backend = filtered_backends[0]
+
+            backend = filtered_backends[0]
+
         return backend
 
     def backends(self, name=None, **kwargs):
@@ -69,7 +74,8 @@ class FakeProvider(BaseProvider):
                           FakeTenerife(),
                           FakeMelbourne(),
                           FakeRueschlikon(),
-                          FakeTokyo()]
+                          FakeTokyo(),
+                          FakeOpenPulse2Q()]
         super().__init__()
 
 
@@ -121,7 +127,7 @@ class FakeQasmSimulator(FakeBackend):
     """A fake simulator backend."""
 
     def __init__(self):
-        configuration = BackendConfiguration(
+        configuration = QasmBackendConfiguration(
             backend_name='fake_qasm_simulator',
             backend_version='0.0.0',
             n_qubits=5,
@@ -144,10 +150,11 @@ class FakeOpenPulse2Q(FakeBackend):
     """A fake 2 qubit backend for pulse test."""
 
     def __init__(self):
-        configuration = BackendConfiguration(
+        configuration = PulseBackendConfiguration(
             backend_name='fake_openpulse_2q',
             backend_version='0.0.0',
             n_qubits=2,
+            meas_levels=[0, 1, 2],
             basis_gates=['u1', 'u2', 'u3', 'cx', 'id'],
             simulator=False,
             local=True,
@@ -160,15 +167,15 @@ class FakeOpenPulse2Q(FakeBackend):
             n_registers=2,
             n_uchannels=2,
             u_channel_lo=[
-                [{"q": 0, "scale": [1, 0]}],
-                [{"q": 0, "scale": [-1, 0]}, {"q": 1, "scale": [1, 0]}]
+                [UchannelLO(q=0, scale=1.+0.j)],
+                [UchannelLO(q=0, scale=-1.+0.j), UchannelLO(q=1, scale=1.+0.j)]
             ],
             meas_level=[1, 2],
             qubit_lo_range=[[4.5, 5.5], [4.5, 5.5]],
             meas_lo_range=[[6.0, 7.0], [6.0, 7.0]],
             dt=1.3333,
             dtm=10.5,
-            rep_times=[100, 250, 500, 1000],
+            rep_times=[100., 250., 500., 1000.],
             meas_map=[[0], [1, 2]],
             channel_bandwidth=[
                 [-0.2, 0.4], [-0.3, 0.3], [-0.3, 0.3],
@@ -187,8 +194,23 @@ class FakeOpenPulse2Q(FakeBackend):
             qubit_freq_est=[4.9, 5.0],
             meas_freq_est=[6.5, 6.6],
             buffer=10,
-            pulse_library=[],
-            cmd_def=[]
+            pulse_library=[PulseLibraryItem(name='test_pulse_1', samples=[0.j, 0.1j]),
+                           PulseLibraryItem(name='test_pulse_2', samples=[0.j, 0.1j, 1j])],
+            cmd_def=[Command(name='u1', qubits=[0],
+                             sequence=[PulseQobjInstruction(name='fc', ch='d0',
+                                                            t0=0, phase='-P1*np.pi')]),
+                     Command(name='cx', qubits=[0, 1],
+                             sequence=[PulseQobjInstruction(name='test_pulse_1', ch='d0', t0=0),
+                                       PulseQobjInstruction(name='test_pulse_2', ch='u0', t0=10),
+                                       PulseQobjInstruction(name='pv', ch='d1',
+                                                            t0=2, val='cos(P2)'),
+                                       PulseQobjInstruction(name='test_pulse_1', ch='d1', t0=20),
+                                       PulseQobjInstruction(name='fc', ch='d1',
+                                                            t0=20, phase=2.1)]),
+                     Command(name='measure', qubits=[0],
+                             sequence=[PulseQobjInstruction(name='test_pulse_1', ch='m0', t0=0),
+                                       PulseQobjInstruction(name='acquire', duration=10, t0=0,
+                                                            qubits=[0], memory_slot=[0])])]
         )
 
         super().__init__(configuration)
@@ -210,7 +232,7 @@ class FakeTenerife(FakeBackend):
         """
         cmap = [[1, 0], [2, 0], [2, 1], [3, 2], [3, 4], [4, 2]]
 
-        configuration = BackendConfiguration(
+        configuration = QasmBackendConfiguration(
             backend_name='fake_tenerife',
             backend_version='0.0.0',
             n_qubits=5,
@@ -243,7 +265,7 @@ class FakeMelbourne(FakeBackend):
                 [5, 6], [5, 9], [6, 8], [7, 8], [9, 8], [9, 10],
                 [11, 3], [11, 10], [11, 12], [12, 2], [13, 1], [13, 12]]
 
-        configuration = BackendConfiguration(
+        configuration = QasmBackendConfiguration(
             backend_name='fake_melbourne',
             backend_version='0.0.0',
             n_qubits=14,
@@ -277,7 +299,7 @@ class FakeRueschlikon(FakeBackend):
                 [11, 10], [12, 5], [12, 11], [12, 13], [13, 4],
                 [13, 14], [15, 0], [15, 2], [15, 14]]
 
-        configuration = BackendConfiguration(
+        configuration = QasmBackendConfiguration(
             backend_name='fake_rueschlikon',
             backend_version='0.0.0',
             n_qubits=16,
@@ -327,7 +349,7 @@ class FakeTokyo(FakeBackend):
                 [16, 15], [16, 17], [17, 11], [17, 16], [18, 13], [18, 14],
                 [19, 13], [19, 14]]
 
-        configuration = BackendConfiguration(
+        configuration = QasmBackendConfiguration(
             backend_name='fake_tokyo',
             backend_version='0.0.0',
             n_qubits=16,

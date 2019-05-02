@@ -16,11 +16,11 @@
 import logging
 
 from qiskit.exceptions import QiskitError
-from qiskit.pulse.commands import PulseInstruction
-from qiskit.qobj import (PulseQobj, QobjExperimentHeader, QasmQobjConfig,
+from qiskit.pulse.commands import PulseInstruction, AcquireInstruction
+from qiskit.qobj import (PulseQobj, QobjExperimentHeader,
                          PulseQobjInstruction, PulseQobjExperimentConfig,
-                         PulseQobjExperiment, PulseQobjConfig, QobjPulseLibrary)
-from qiskit.qobj.converters import PulseQobjConverter, LoConfigConverter
+                         PulseQobjExperiment, PulseQobjConfig, PulseLibraryItem)
+from qiskit.qobj.converters import InstructionToQobjConverter, LoConfigConverter
 
 logger = logging.getLogger(__name__)
 
@@ -37,15 +37,19 @@ def assemble_schedules(schedules, qobj_id=None, qobj_header=None, run_config=Non
     Raises:
         QiskitError: when invalid schedules or configs are provided
     """
-    qobj_config = QasmQobjConfig()
-    if run_config:
-        qobj_config = QasmQobjConfig(**run_config.to_dict())
+    if hasattr(run_config, 'instruction_converter'):
+        instruction_converter = run_config.instruction_converter
+    else:
+        instruction_converter = InstructionToQobjConverter
 
-    # Get appropriate convertors
-    instruction_converter = PulseQobjConverter
-    instruction_converter = instruction_converter(PulseQobjInstruction, **run_config.to_dict())
-    lo_converter = LoConfigConverter(PulseQobjExperimentConfig, run_config.qubit_lo_freq,
-                                     run_config.meas_lo_freq, **run_config.to_dict())
+    qobj_config = run_config.to_dict()
+    qubit_lo_range = qobj_config.pop('qubit_lo_range')
+    meas_lo_range = qobj_config.pop('meas_lo_range')
+    meas_map = qobj_config.pop('meas_map', None)
+    instruction_converter = instruction_converter(PulseQobjInstruction, **qobj_config)
+
+    lo_converter = LoConfigConverter(PulseQobjExperimentConfig, qubit_lo_range=qubit_lo_range,
+                                     meas_lo_range=meas_lo_range, **qobj_config)
 
     # Pack everything into the Qobj
     qobj_schedules = []
@@ -60,6 +64,11 @@ def assemble_schedules(schedules, qobj_id=None, qobj_header=None, run_config=Non
             if isinstance(instruction, PulseInstruction):
                 # add samples to pulse library
                 user_pulselib.add(instruction.command)
+            if isinstance(instruction, AcquireInstruction):
+                if meas_map:
+                    # verify all acquires satisfy meas_map
+                    _validate_meas_map(instruction, meas_map)
+
         # experiment header
         qobj_experiment_header = QobjExperimentHeader(
             name=schedule.name or 'Experiment-%d' % idx
@@ -71,8 +80,8 @@ def assemble_schedules(schedules, qobj_id=None, qobj_header=None, run_config=Non
         })
 
     # setup pulse_library
-    run_config.pulse_library = [QobjPulseLibrary(name=pulse.name, samples=pulse.samples)
-                                for pulse in user_pulselib]
+    qobj_config['pulse_library'] = [PulseLibraryItem(name=pulse.name, samples=pulse.samples)
+                                    for pulse in user_pulselib]
 
     # create qob experiment field
     experiments = []
@@ -81,10 +90,10 @@ def assemble_schedules(schedules, qobj_id=None, qobj_header=None, run_config=Non
         # update global config
         q_los = lo_converter.get_qubit_los(lo_dict)
         if q_los:
-            run_config.qubit_lo_freq = q_los
+            qobj_config['qubit_lo_freq'] = q_los
         m_los = lo_converter.get_meas_los(lo_dict)
         if m_los:
-            run_config.meas_lo_freq = m_los
+            qobj_config['meas_lo_freq'] = m_los
 
     if run_config.schedule_los:
         # multiple frequency setups
@@ -93,16 +102,16 @@ def assemble_schedules(schedules, qobj_id=None, qobj_header=None, run_config=Non
             for lo_dict in run_config.schedule_los:
                 experiments.append(PulseQobjExperiment(
                     instructions=qobj_schedules[0]['instructions'],
-                    experimentheader=qobj_schedules[0]['header'],
-                    experimentconfig=lo_converter(lo_dict)
+                    header=qobj_schedules[0]['header'],
+                    config=lo_converter(lo_dict)
                 ))
         elif len(qobj_schedules) == len(run_config.schedule_los):
             # n:n setup
             for lo_dict, schedule in zip(run_config.schedule_los, qobj_schedules):
                 experiments.append(PulseQobjExperiment(
                     instructions=schedule['instructions'],
-                    experimentheader=schedule['header'],
-                    experimentconfig=lo_converter(lo_dict)
+                    header=schedule['header'],
+                    config=lo_converter(lo_dict)
                 ))
         else:
             raise QiskitError('Invalid LO setting is specified. '
@@ -115,12 +124,29 @@ def assemble_schedules(schedules, qobj_id=None, qobj_header=None, run_config=Non
         for schedule in qobj_schedules:
             experiments.append(PulseQobjExperiment(
                 instructions=schedule['instructions'],
-                experimentheader=schedule['header'],
+                header=schedule['header'],
             ))
 
-    qobj_config = PulseQobjConfig(**run_config.to_dict())
+    qobj_config = PulseQobjConfig(**qobj_config)
 
     return PulseQobj(qobj_id=qobj_id,
                      config=qobj_config,
                      experiments=experiments,
                      header=qobj_header)
+
+
+def _validate_meas_map(acquire, meas_map):
+    """Validate all qubits tied in meas_map are to be acquired."""
+    meas_map_set = [set(m) for m in meas_map]
+    # Verify that each qubit is listed once in measurement map
+    measured_qubits = set(acq_ch.index for acq_ch in acquire.acquires)
+    tied_qubits = set()
+    for meas_qubit in measured_qubits:
+        for map_inst in meas_map_set:
+            if meas_qubit in map_inst:
+                tied_qubits |= map_inst
+
+    if measured_qubits != tied_qubits:
+        raise QiskitError('Qubits to be acquired: {0} do not satisfy required qubits '
+                          'in measurement map: {1}'.format(measured_qubits, tied_qubits))
+    return True
