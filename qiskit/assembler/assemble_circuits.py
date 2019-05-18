@@ -13,20 +13,16 @@
 # that they have been altered from the originals.
 
 """Assemble function for converting a list of circuits into a qobj"""
-import logging
-
 from qiskit.qobj import (QasmQobj, QobjExperimentHeader,
                          QasmQobjInstruction, QasmQobjExperimentConfig, QasmQobjExperiment,
                          QasmQobjConfig)
-
-logger = logging.getLogger(__name__)
 
 
 def assemble_circuits(circuits, run_config, qobj_id, qobj_header):
     """Assembles a list of circuits into a qobj which can be run on the backend.
 
     Args:
-        circuits (list[QuantumCircuits]): circuit(s) to assemble
+        circuits (list[QuantumCircuit]): circuit(s) to assemble
         qobj_id (int): identifier for the generated qobj
         qobj_header (QobjHeader): header to pass to the results
         run_config (RunConfig): configuration of the runtime environment

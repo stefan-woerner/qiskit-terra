@@ -1,12 +1,20 @@
 # -*- coding: utf-8 -*-
 
-# Copyright 2019, IBM.
+# This code is part of Qiskit.
 #
-# This source code is licensed under the Apache License, Version 2.0 found in
-# the LICENSE.txt file in the root directory of this source tree.
-
+# (C) Copyright IBM 2017, 2019.
+#
+# This code is licensed under the Apache License, Version 2.0. You may
+# obtain a copy of this license in the LICENSE.txt file in the root directory
+# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# Any modifications or derivative works of this code must retain this
+# copyright notice, and modified files need to carry a notice indicating
+# that they have been altered from the originals.
 
 """Test registerless QuantumCircuit and Gates on wires"""
+
+import numpy
 
 from qiskit import QuantumRegister, ClassicalRegister, QuantumCircuit, QiskitError
 from qiskit.test import QiskitTestCase
@@ -227,7 +235,7 @@ class TestGatesOnWireRange(QiskitTestCase):
         circuit.barrier(range(0, 3))
 
         expected = QuantumCircuit(qreg01, qreg23)
-        expected.barrier([qreg01[0], qreg01[1], qreg23[0]])
+        expected.barrier(qreg01[0], qreg01[1], qreg23[0])
 
         self.assertEqual(circuit, expected)
 
@@ -289,6 +297,45 @@ class TestGatesOnWireSlice(QiskitTestCase):
 
         expected = QuantumCircuit(qreg)
         expected.h(qreg[0:2])
+
+        self.assertEqual(circuit, expected)
+
+    def test_wire_list(self):
+        """Test gate wire list of integers
+        """
+        qreg = QuantumRegister(4)
+        circuit = QuantumCircuit(qreg)
+        circuit.h([0, 1])
+
+        expected = QuantumCircuit(qreg)
+        expected.h(qreg[0:2])
+
+        self.assertEqual(circuit, expected)
+
+    def test_wire_np_int(self):
+        """Test gate wire with numpy int
+        """
+        numpy_int = numpy.dtype('int').type(2)
+        qreg = QuantumRegister(4)
+        circuit = QuantumCircuit(qreg)
+        circuit.h(numpy_int)
+
+        expected = QuantumCircuit(qreg)
+        expected.h(qreg[2])
+
+        self.assertEqual(circuit, expected)
+
+    def test_wire_np_1d_array(self):
+        """Test gate wire with numpy array (one-dimensional)
+        """
+        numpy_arr = numpy.array([0, 1])
+        qreg = QuantumRegister(4)
+        circuit = QuantumCircuit(qreg)
+        circuit.h(numpy_arr)
+
+        expected = QuantumCircuit(qreg)
+        expected.h(qreg[0])
+        expected.h(qreg[1])
 
         self.assertEqual(circuit, expected)
 
@@ -380,3 +427,11 @@ class TestGatesOnWireSlice(QiskitTestCase):
         circuit = QuantumCircuit(qreg, creg)
         # circuit.measure(1, slice(9,99))
         self.assertRaises(QiskitError, circuit.measure, 1, slice(9, 99))
+
+    def test_wire_np_2d_array(self):
+        """Test gate wire with numpy array (two-dimensional). Raises.
+        """
+        numpy_arr = numpy.array([[0, 1], [2, 3]])
+        qreg = QuantumRegister(4)
+        circuit = QuantumCircuit(qreg)
+        self.assertRaises(QiskitError, circuit.h, numpy_arr)  # circuit.h(numpy_arr)

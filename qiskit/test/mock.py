@@ -25,7 +25,6 @@ The mock devices are mainly for testing the compiler.
 """
 
 import uuid
-import logging
 from concurrent import futures
 import time
 
@@ -43,9 +42,6 @@ from qiskit.providers.baseprovider import BaseProvider
 from qiskit.providers.exceptions import QiskitBackendNotFoundError
 
 
-logger = logging.getLogger(__name__)
-
-
 class FakeProvider(BaseProvider):
     """Dummy provider just for testing purposes.
 
@@ -55,10 +51,8 @@ class FakeProvider(BaseProvider):
     def get_backend(self, name=None, **kwargs):
         backend = self._backends[0]
         if name:
-            # pylint: disable=no-member
             filtered_backends = [backend for backend in self._backends
                                  if backend.name() == name]
-            # pylint: enable=no-member
             if not filtered_backends:
                 raise QiskitBackendNotFoundError()
 
@@ -114,9 +108,9 @@ class FakeBackend(BaseBackend):
         job.submit()
         return job
 
-    # pylint: disable=unused-argument
     def run_job(self, job_id, qobj):
         """Main dummy run loop"""
+        del qobj  # unused
         time.sleep(self.time_alive)
 
         return Result.from_dict(
@@ -175,7 +169,7 @@ class FakeOpenPulse2Q(FakeBackend):
             meas_lo_range=[[6.0, 7.0], [6.0, 7.0]],
             dt=1.3333,
             dtm=10.5,
-            rep_times=[100., 250., 500., 1000.],
+            rep_times=[100, 250, 500, 1000],
             meas_map=[[0], [1, 2]],
             channel_bandwidth=[
                 [-0.2, 0.4], [-0.3, 0.3], [-0.3, 0.3],

@@ -12,7 +12,7 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-# pylint: disable=invalid-name,anomalous-backslash-in-string,missing-docstring
+# pylint: disable=invalid-name,missing-docstring
 
 """mpl circuit visualization backend."""
 
@@ -34,13 +34,14 @@ except ImportError:
     HAS_MATPLOTLIB = False
 
 from qiskit.visualization import exceptions
-from qiskit.visualization import qcstyle
 from qiskit.visualization import interpolation
-from qiskit.visualization.qcstyle import OPStylePulse, OPStyleSched
+from qiskit.visualization.qcstyle import (OPStylePulse, OPStyleSched,
+                                          DefaultStyle, BWStyle)
 from qiskit.pulse.channels import (DriveChannel, ControlChannel, MeasureChannel,
                                    AcquireChannel, SnapshotChannel)
 from qiskit.pulse import (SamplePulse, FrameChange, PersistentValue, Snapshot, Acquire,
                           PulseError)
+from qiskit import user_config
 
 logger = logging.getLogger(__name__)
 
@@ -127,8 +128,18 @@ class MatplotlibDrawer:
             'xmax': 0,
             'ymax': 0,
         }
+        config = user_config.get_config()
+        if config:
+            config_style = config.get('circuit_mpl_style', 'default')
+            if config_style == 'default':
+                self._style = DefaultStyle()
+            elif config_style == 'bw':
+                self._style = BWStyle()
+        elif style is False:
+            self._style = BWStyle()
+        else:
+            self._style = DefaultStyle()
 
-        self._style = qcstyle.QCStyle()
         self.plot_barriers = plot_barriers
         self.reverse_bits = reverse_bits
         if style:
@@ -569,7 +580,7 @@ class MatplotlibDrawer:
                 # if custom gate with a longer than standard name determine
                 # width
                 elif op.name not in ['barrier', 'snapshot', 'load', 'save',
-                                     'noise', 'cswap', 'swap'] and len(
+                                     'noise', 'cswap', 'swap', 'measure'] and len(
                                          op.name) >= 4:
                     box_width = round(len(op.name) / 8)
                     # If more than 4 characters min width is 2
@@ -587,7 +598,7 @@ class MatplotlibDrawer:
 
                 _iswide = op.name in _wide_gate
                 if op.name not in ['barrier', 'snapshot', 'load', 'save',
-                                   'noise', 'cswap', 'swap'] and len(
+                                   'noise', 'cswap', 'swap', 'measure'] and len(
                                        op.name) >= 4:
                     _iswide = True
 
@@ -608,8 +619,16 @@ class MatplotlibDrawer:
                                 reg['index'] == carg[1]):
                             c_idxs.append(index)
                             break
-                for ii in q_idxs:
-                    q_anchors[ii].set_index(this_anc, layer_width)
+
+                # Only add the gate to the anchors if it is going to be plotted.
+                # This prevents additional blank wires at the end of the line if
+                # the last instruction is a barrier type
+                if self.plot_barriers or \
+                        op.name not in ['barrier', 'snapshot', 'load', 'save',
+                                        'noise']:
+
+                    for ii in q_idxs:
+                        q_anchors[ii].set_index(this_anc, layer_width)
 
                 # qreg coordinate
                 q_xy = [q_anchors[ii].plot_coord(this_anc, layer_width) for ii in q_idxs]
@@ -677,6 +696,9 @@ class MatplotlibDrawer:
                         _barriers['coord'].append(q_xy[index])
                     if self.plot_barriers:
                         self._barrier(_barriers, this_anc)
+                    else:
+                        # this stop there being blank lines plotted in place of barriers
+                        this_anc -= 1
                 #
                 # draw single qubit gates
                 #
@@ -1209,8 +1231,8 @@ class ScheduleDrawer:
 
         return n_valid_waveform, v_max
 
-    # pylint: disable=unused-argument
     def _draw_table(self, figure, channels, dt, n_valid_waveform):
+        del n_valid_waveform  # unused
         # create table
         table_data = []
         if self.style.use_table:
@@ -1268,7 +1290,7 @@ class ScheduleDrawer:
             snapshots = events.snapshots
             if snapshots:
                 for time in snapshots:
-                    ax.annotate(s=u"\u25D8", xy=(time*dt, y0), xytext=(time*dt, y0+0.08),
+                    ax.annotate(s="\u25D8", xy=(time*dt, y0), xytext=(time*dt, y0+0.08),
                                 arrowprops={'arrowstyle': 'wedge'}, ha='center')
 
     def _draw_framechanges(self, ax, fcs, dt, y0):

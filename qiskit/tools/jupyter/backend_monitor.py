@@ -29,7 +29,7 @@ from qiskit.exceptions import QiskitError
 from qiskit.visualization.gate_map import plot_gate_map
 
 try:
-    # pylint: disable=import-error,no-name-in-module
+    # pylint: disable=import-error
     from qiskit.providers.ibmq import IBMQ, IBMQBackend
 except ImportError:
     pass
@@ -40,9 +40,10 @@ class BackendMonitor(Magics):
     """A class of status magic functions.
     """
     @line_magic
-    def qiskit_backend_monitor(self, line='', cell=None):  # pylint: disable=W0613
+    def qiskit_backend_monitor(self, line='', cell=None):
         """A Jupyter magic function to monitor backends.
         """
+        del cell  # Unused
         backend = self.shell.user_ns[line]
         if not isinstance(backend, IBMQBackend):
             raise QiskitError('Input variable is not of type IBMQBackend.')

@@ -29,7 +29,7 @@ from .qasmlexer import QasmLexer
 class QasmParser:
     """OPENQASM Parser."""
 
-    # pylint: disable=unused-argument,missing-docstring,invalid-name
+    # pylint: disable=missing-docstring,invalid-name
 
     def __init__(self, filename):
         """Create the parser."""
@@ -553,6 +553,7 @@ class QasmParser:
         """
            gate_scope :
         """
+        del program  # unused
         self.push_scope()
 
     # ----------------------------------------
@@ -787,7 +788,7 @@ class QasmParser:
     #        | OPAQUE id gate_scope '(' ')'              bit_list
     #        | OPAQUE id gate_scope '(' gate_id_list ')' bit_list
     #
-    # These are like gate declarations only wihtout a body.
+    # These are like gate declarations only without a body.
     # ----------------------------------------
     def p_opaque_0(self, program):
         """
