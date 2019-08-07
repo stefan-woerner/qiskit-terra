@@ -18,10 +18,9 @@ Simulator command to snapshot internal simulator representation.
 import warnings
 
 from qiskit import QuantumCircuit
-from qiskit.circuit import CompositeGate
 from qiskit.circuit.quantumregister import QuantumRegister
 from qiskit.circuit import Instruction
-from qiskit.extensions.exceptions import ExtensionError
+from qiskit.extensions.exceptions import QiskitError, ExtensionError
 
 
 class Snapshot(Instruction):
@@ -90,6 +89,9 @@ class Snapshot(Instruction):
         else:
             raise TypeError('label expects a string')
 
+    def c_if(self, classical, val):
+        raise QiskitError('Snapshots are simulator directives and cannot be conditional.')
+
 
 def snapshot(self,
              label,
@@ -145,6 +147,5 @@ def snapshot(self,
             params=params), qubits)
 
 
-# Add to QuantumCircuit and CompositeGate classes
+# Add to QuantumCircuit class
 QuantumCircuit.snapshot = snapshot
-CompositeGate.snapshot = snapshot

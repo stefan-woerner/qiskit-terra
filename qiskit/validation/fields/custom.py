@@ -95,7 +95,7 @@ class InstructionParameter(ModelTypeValidator):
         if isinstance(value, sympy.Symbol):
             return str(value)
         if isinstance(value, sympy.Basic):
-            if value.is_imaginary:
+            if sympy.im(value) != 0:
                 return [float(sympy.re(value)), float(sympy.im(value))]
             if value.is_Integer:
                 return int(value.evalf())
@@ -103,8 +103,8 @@ class InstructionParameter(ModelTypeValidator):
                 return float(value.evalf())
 
         # Fallback for attempting serialization.
-        if hasattr(value, 'as_dict'):
-            return value.as_dict()
+        if hasattr(value, 'to_dict'):
+            return value.to_dict()
 
         return self.fail('format', input=value)
 

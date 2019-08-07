@@ -19,43 +19,41 @@ from unittest.mock import patch
 from io import StringIO
 
 from qiskit.tools.monitor import backend_overview, backend_monitor
-from qiskit.test import QiskitTestCase, requires_qe_access
-from qiskit.util import _has_connection
-# Check if internet connection exists
-HAS_NET_CONNECTION = _has_connection('qiskit.org', 443)
+from qiskit.test import QiskitTestCase, online_test
 
 
 class TestBackendOverview(QiskitTestCase):
     """Tools test case."""
 
-    @unittest.skipIf(not HAS_NET_CONNECTION, "requries internet connection.")
-    @requires_qe_access
+    @online_test
     def test_backend_overview(self, qe_token, qe_url):
         """Test backend_overview"""
         from qiskit import IBMQ  # pylint: disable: import-error
         IBMQ.enable_account(qe_token, qe_url)
+        self.addCleanup(IBMQ.disable_account)
 
-        with patch('sys.stdout', new=StringIO()) as fake_stout:
+        with patch('sys.stdout', new=StringIO()) as fake_stdout:
             backend_overview()
-        stdout = fake_stout.getvalue()
+        stdout = fake_stdout.getvalue()
         self.assertIn('Operational:', stdout)
         self.assertIn('Avg. T1:', stdout)
         self.assertIn('Num. Qubits:', stdout)
 
-    @unittest.skipIf(not HAS_NET_CONNECTION, "requries internet connection.")
-    @requires_qe_access
+    @online_test
     def test_backend_monitor(self, qe_token, qe_url):
         """Test backend_monitor"""
         from qiskit import IBMQ  # pylint: disable: import-error
         IBMQ.enable_account(qe_token, qe_url)
+        self.addCleanup(IBMQ.disable_account)
+
         for back in IBMQ.backends():
             if not back.configuration().simulator:
                 backend = back
                 break
-        with patch('sys.stdout', new=StringIO()) as fake_stout:
+        with patch('sys.stdout', new=StringIO()) as fake_stdout:
             backend_monitor(backend)
 
-        stdout = fake_stout.getvalue()
+        stdout = fake_stdout.getvalue()
         self.assertIn('Configuration', stdout)
         self.assertIn('Qubits [Name / Freq / T1 / T2 / U1 err / U2 err / U3 err / Readout err]',
                       stdout)

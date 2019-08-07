@@ -12,9 +12,7 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""
-Unitary gate.
-"""
+"""Unitary gate."""
 
 from qiskit.exceptions import QiskitError
 from .instruction import Instruction
@@ -38,12 +36,15 @@ class Gate(Instruction):
     def to_matrix(self):
         """Return a Numpy.array for the gate unitary matrix.
 
-        Additional Information
-        ----------------------
-        If a Gate subclass does not implement this method an exception
-        will be raised when this base class method is called.
+        Raises:
+            QiskitError: If a Gate subclass does not implement this method an
+                exception will be raised when this base class method is called.
         """
         raise QiskitError("to_matrix not defined for this {}".format(type(self)))
+
+    def _return_repeat(self, exponent):
+        return Gate(name="%s*%s" % (self.name, exponent), num_qubits=self.num_qubits,
+                    params=self.params)
 
     def assemble(self):
         """Assemble a QasmQobjInstruction"""
@@ -74,7 +75,9 @@ class Gate(Instruction):
 
     @staticmethod
     def _broadcast_single_argument(qarg):
-        """ Expands a single argument. For example: [q[0], q[1]] -> [q[0]], [q[1]]
+        """Expands a single argument.
+
+        For example: [q[0], q[1]] -> [q[0]], [q[1]]
         """
         # [q[0], q[1]] -> [q[0]]
         #              -> [q[1]]
@@ -103,34 +106,39 @@ class Gate(Instruction):
                               (qarg0, qarg1))
 
     @staticmethod
-    def _broadcast_3_arguments(qarg0, qarg1, qarg2):
-        if len(qarg0) == len(qarg1) == len(qarg2):
-            # [q[0], q[1]], [r[0], r[1]],  [s[0], s[1]] -> [q[0], r[0], s[0]]
-            #                                           -> [q[1], r[1], s[1]]
-            for arg0, arg1, arg2 in zip(qarg0, qarg1, qarg2):
-                yield [arg0, arg1, arg2], []
+    def _broadcast_3_or_more_args(qargs):
+        if all(len(qarg) == len(qargs[0]) for qarg in qargs):
+            for arg in zip(*qargs):
+                yield list(arg), []
         else:
             raise QiskitError(
-                'Not sure how to combine these three qubit arguments:\n %s\n %s\n %s' %
-                (qarg0, qarg1, qarg2))
+                'Not sure how to combine these qubit arguments:\n %s\n' % qargs)
 
     def broadcast_arguments(self, qargs, cargs):
-        """
-        Validation and handling of the arguments and its relationship. For example:
+        """Validation and handling of the arguments and its relationship.
+
+        For example:
         `cx([q[0],q[1]], q[2])` means `cx(q[0], q[2]); cx(q[1], q[2])`. This method
-        yields the arguments in the right grouping. In the given example:
-          in: [[q[0],q[1]], q[2]],[]
-        outs: [q[0], q[2]], []
-              [q[1], q[2]], []
+        yields the arguments in the right grouping. In the given example::
+
+            in: [[q[0],q[1]], q[2]],[]
+            outs: [q[0], q[2]], []
+                  [q[1], q[2]], []
+
         The general broadcasting rules are:
-         * If len(qargs) == 1:
+         * If len(qargs) == 1::
+
                 [q[0], q[1]] -> [q[0]],[q[1]]
-         * If len(qargs) == 2:
+
+         * If len(qargs) == 2::
+
                 [[q[0], q[1]], [r[0], r[1]]] -> [q[0], r[0]], [q[1], r[1]]
                 [[q[0]], [r[0], r[1]]]       -> [q[0], r[0]], [q[0], r[1]]
                 [[q[0], q[1]], [r[0]]]       -> [q[0], r[0]], [q[1], r[0]]
-         * If len(qargs) == 3:
-                [q[0], q[1]], [r[0], r[1]],  [s[0], s[1]] -> [q[0], r[0], s[0]], [q[1], r[1], s[1]]
+
+         * If len(qargs) >= 3::
+
+                [q[0], q[1]], [r[0], r[1]],  ...] -> [q[0], r[0], ...], [q[1], r[1], ...]
 
         Args:
             qargs (List): List of quantum bit arguments.
@@ -154,7 +162,7 @@ class Gate(Instruction):
             return Gate._broadcast_single_argument(qargs[0])
         elif len(qargs) == 2:
             return Gate._broadcast_2_arguments(qargs[0], qargs[1])
-        elif len(qargs) == 3:
-            return Gate._broadcast_3_arguments(qargs[0], qargs[1], qargs[2])
+        elif len(qargs) >= 3:
+            return Gate._broadcast_3_or_more_args(qargs)
         else:
             raise QiskitError('This gate cannot handle %i arguments' % len(qargs))
