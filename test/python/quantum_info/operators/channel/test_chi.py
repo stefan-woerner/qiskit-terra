@@ -16,6 +16,7 @@
 
 import unittest
 import numpy as np
+from numpy.testing import assert_allclose
 
 from qiskit import QiskitError
 from qiskit.quantum_info.states import DensityMatrix
@@ -30,12 +31,12 @@ class TestChi(ChannelTestCase):
         """Test initialization"""
         mat4 = np.eye(4) / 2.0
         chan = Chi(mat4)
-        self.assertAllClose(chan.data, mat4)
+        assert_allclose(chan.data, mat4)
         self.assertEqual(chan.dim, (2, 2))
 
         mat16 = np.eye(16) / 4
         chan = Chi(mat16)
-        self.assertAllClose(chan.data, mat16)
+        assert_allclose(chan.data, mat16)
         self.assertEqual(chan.dim, (4, 4))
 
         # Wrong input or output dims should raise exception
@@ -115,6 +116,31 @@ class TestChi(ChannelTestCase):
         chan = chan1 @ chan2
         output = rho.evolve(chan)
         self.assertEqual(chan.dim, (2, 2))
+        self.assertEqual(output, target)
+
+    def test_dot(self):
+        """Test dot method."""
+        # Random input test state
+        rho = DensityMatrix(self.rand_rho(2))
+
+        # UnitaryChannel evolution
+        chan1 = Chi(self.chiX)
+        chan2 = Chi(self.chiY)
+        target = rho.evolve(Chi(self.chiZ))
+        output = rho.evolve(chan2.dot(chan1))
+        self.assertEqual(output, target)
+        output = rho.evolve(chan2 * chan1)
+        self.assertEqual(output, target)
+
+        # Compose random
+        chi1 = self.rand_matrix(4, 4, real=True)
+        chi2 = self.rand_matrix(4, 4, real=True)
+        chan1 = Chi(chi1, input_dims=2, output_dims=2)
+        chan2 = Chi(chi2, input_dims=2, output_dims=2)
+        target = rho.evolve(chan1).evolve(chan2)
+        output = rho.evolve(chan2.dot(chan1))
+        self.assertEqual(output, target)
+        output = rho.evolve(chan2 * chan1)
         self.assertEqual(output, target)
 
     def test_compose_front(self):
@@ -259,13 +285,14 @@ class TestChi(ChannelTestCase):
         targ = Chi(val * self.chiI)
         self.assertEqual(chan.multiply(val), targ)
         self.assertEqual(val * chan, targ)
-        self.assertEqual(chan * val, targ)
 
     def test_multiply_except(self):
         """Test multiply method raises exceptions."""
         chan = Chi(self.chiI)
         self.assertRaises(QiskitError, chan.multiply, 's')
+        self.assertRaises(QiskitError, chan.__rmul__, 's')
         self.assertRaises(QiskitError, chan.multiply, chan)
+        self.assertRaises(QiskitError, chan.__rmul__, chan)
 
     def test_negate(self):
         """Test negate method"""

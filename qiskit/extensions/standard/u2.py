@@ -12,7 +12,6 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-# pylint: disable=invalid-name
 """
 One-pulse single-qubit gate.
 """
@@ -21,7 +20,6 @@ from qiskit.circuit import Gate
 from qiskit.circuit import QuantumCircuit
 from qiskit.circuit import QuantumRegister
 from qiskit.qasm import pi
-from qiskit.extensions.standard.u3 import U3Gate
 
 
 class U2Gate(Gate):
@@ -32,6 +30,7 @@ class U2Gate(Gate):
         super().__init__("u2", 1, [phi, lam], label=label)
 
     def _define(self):
+        from qiskit.extensions.standard.u3 import U3Gate
         definition = []
         q = QuantumRegister(1, "q")
         rule = [(U3Gate(pi / 2, self.params[0], self.params[1]), [q[0]], [])]
@@ -59,7 +58,7 @@ class U2Gate(Gate):
                            dtype=complex)
 
 
-def u2(self, phi, lam, q):
+def u2(self, phi, lam, q):  # pylint: disable=invalid-name
     """Apply u2 to q."""
     return self.append(U2Gate(phi, lam), [q], [])
 

@@ -16,6 +16,8 @@
 
 from collections.abc import Iterable, Mapping
 
+import numpy as np
+
 from marshmallow import fields as _fields
 from marshmallow.exceptions import ValidationError
 from marshmallow.utils import is_collection
@@ -30,7 +32,7 @@ class Nested(_fields.Nested, ModelTypeValidator):
     def _expected_types(self):
         return self.schema.model_cls
 
-    def check_type(self, value, attr, data):
+    def check_type(self, value, attr, data, **kwargs):
         """Validate if the value is of the type of the schema's model.
 
         Assumes the nested schema is a ``BaseSchema``.
@@ -45,7 +47,7 @@ class Nested(_fields.Nested, ModelTypeValidator):
         values = value if self.many else [value]
         for idx, v in enumerate(values):
             try:
-                _check_type(v, idx, values)
+                _check_type(v, idx, values, **kwargs)
             except ValidationError as err:
                 errors.append(err.messages)
 
@@ -62,18 +64,18 @@ class List(_fields.List, ModelTypeValidator):
 
     valid_types = (Iterable, )
 
-    def check_type(self, value, attr, data):
+    def check_type(self, value, attr, data, **kwargs):
         """Validate if it's a list of valid item-field values.
 
         Check if each element in the list can be validated by the item-field
         passed during construction.
         """
-        super().check_type(value, attr, data)
+        super().check_type(value, attr, data, **kwargs)
 
         errors = []
         for idx, v in enumerate(value):
             try:
-                self.container.check_type(v, idx, value)
+                self.inner.check_type(v, idx, value, **kwargs)
             except ValidationError as err:
                 errors.append(err.messages)
 
@@ -88,3 +90,20 @@ class Dict(_fields.Dict, ModelTypeValidator):
     __doc__ = _fields.Dict.__doc__
 
     valid_types = (Mapping, )
+
+
+class NumpyArray(List):
+    # pylint: disable=missing-docstring
+    __doc__ = List.__doc__
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        # If an numpy array just return that:
+        if isinstance(value, np.ndarray):
+            return value
+        # If not a native numpy array deserialize the list and convert:
+        deserialized_list = super(NumpyArray, self)._deserialize(
+            value, attr, data, **kwargs)
+        try:
+            return np.array(deserialized_list)
+        except ValueError as err:
+            raise ValidationError([err])

@@ -16,6 +16,7 @@
 
 import unittest
 import numpy as np
+from numpy.testing import assert_allclose
 
 from qiskit import QiskitError
 from qiskit.quantum_info.states import DensityMatrix
@@ -30,23 +31,23 @@ class TestStinespring(ChannelTestCase):
         """Test initialization"""
         # Initialize from unitary
         chan = Stinespring(self.UI)
-        self.assertAllClose(chan.data, self.UI)
+        assert_allclose(chan.data, self.UI)
         self.assertEqual(chan.dim, (2, 2))
 
         # Initialize from Stinespring
         chan = Stinespring(self.depol_stine(0.5))
-        self.assertAllClose(chan.data, self.depol_stine(0.5))
+        assert_allclose(chan.data, self.depol_stine(0.5))
         self.assertEqual(chan.dim, (2, 2))
 
         # Initialize from Non-CPTP
         stine_l, stine_r = self.rand_matrix(4, 2), self.rand_matrix(4, 2)
         chan = Stinespring((stine_l, stine_r))
-        self.assertAllClose(chan.data, (stine_l, stine_r))
+        assert_allclose(chan.data, (stine_l, stine_r))
         self.assertEqual(chan.dim, (2, 2))
 
         # Initialize with redundant second op
         chan = Stinespring((stine_l, stine_l))
-        self.assertAllClose(chan.data, stine_l)
+        assert_allclose(chan.data, stine_l)
         self.assertEqual(chan.dim, (2, 2))
 
         # Wrong input or output dims should raise exception
@@ -172,8 +173,34 @@ class TestStinespring(ChannelTestCase):
         self.assertEqual(chan.dim, (2, 2))
         self.assertEqual(rho_init.evolve(chan), rho_targ)
 
+    def test_dot(self):
+        """Test deprecated front compose method."""
+        # Random input test state
+        rho_init = DensityMatrix(self.rand_rho(2))
+
+        # UnitaryChannel evolution
+        chan1 = Stinespring(self.UX)
+        chan2 = Stinespring(self.UY)
+        rho_targ = rho_init.evolve(Stinespring(self.UZ))
+        self.assertEqual(rho_init.evolve(chan1.dot(chan2)), rho_targ)
+        self.assertEqual(rho_init.evolve(chan1 * chan2), rho_targ)
+
+        # 50% depolarizing channel
+        chan1 = Stinespring(self.depol_stine(0.5))
+        rho_targ = rho_init @ Stinespring(self.depol_stine(0.75))
+        self.assertEqual(rho_init.evolve(chan1.dot(chan1)), rho_targ)
+        self.assertEqual(rho_init.evolve(chan1 * chan1), rho_targ)
+
+        # Compose different dimensions
+        stine1, stine2 = self.rand_matrix(16, 2), self.rand_matrix(8, 4)
+        chan1 = Stinespring(stine1, input_dims=2, output_dims=4)
+        chan2 = Stinespring(stine2, input_dims=4, output_dims=2)
+        rho_targ = rho_init @ chan1 @ chan2
+        self.assertEqual(rho_init.evolve(chan2.dot(chan1)), rho_targ)
+        self.assertEqual(rho_init.evolve(chan2 * chan1), rho_targ)
+
     def test_compose_front(self):
-        """Test front compose method."""
+        """Test deprecated front compose method."""
         # Random input test state
         rho_init = DensityMatrix(self.rand_rho(2))
 
@@ -328,8 +355,6 @@ class TestStinespring(ChannelTestCase):
         self.assertEqual(rho_init.evolve(chan), rho_targ)
         chan = val * chan1
         self.assertEqual(rho_init.evolve(chan), rho_targ)
-        chan = chan1 * val
-        self.assertEqual(rho_init.evolve(chan), rho_targ)
 
         # Double Stinespring set
         chan2 = Stinespring((stine1, stine2), input_dims=2, output_dims=4)
@@ -338,14 +363,14 @@ class TestStinespring(ChannelTestCase):
         self.assertEqual(rho_init.evolve(chan), rho_targ)
         chan = val * chan2
         self.assertEqual(rho_init.evolve(chan), rho_targ)
-        chan = chan2 * val
-        self.assertEqual(rho_init.evolve(chan), rho_targ)
 
     def test_multiply_except(self):
         """Test multiply method raises exceptions."""
         chan = Stinespring(self.depol_stine(1))
         self.assertRaises(QiskitError, chan.multiply, 's')
+        self.assertRaises(QiskitError, chan.__rmul__, 's')
         self.assertRaises(QiskitError, chan.multiply, chan)
+        self.assertRaises(QiskitError, chan.__rmul__, chan)
 
     def test_negate(self):
         """Test negate method"""

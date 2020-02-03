@@ -12,14 +12,14 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""Assemble function for converting a list of circuits into a qobj"""
+"""Assemble function for converting a list of circuits into a qobj."""
 from qiskit.qobj import (QasmQobj, QobjExperimentHeader,
                          QasmQobjInstruction, QasmQobjExperimentConfig, QasmQobjExperiment,
                          QasmQobjConfig)
 
 
 def assemble_circuits(circuits, run_config, qobj_id, qobj_header):
-    """Assembles a list of circuits into a qobj which can be run on the backend.
+    """Assembles a list of circuits into a qobj that can be run on the backend.
 
     Args:
         circuits (list[QuantumCircuit]): circuit(s) to assemble
@@ -28,7 +28,7 @@ def assemble_circuits(circuits, run_config, qobj_id, qobj_header):
         run_config (RunConfig): configuration of the runtime environment
 
     Returns:
-        QasmQobj: the Qobj to be run on the backends
+        QasmQobj: the qobj to be run on the backends
     """
     qobj_config = QasmQobjConfig()
     if run_config:
@@ -76,7 +76,7 @@ def assemble_circuits(circuits, run_config, qobj_id, qobj_header):
         # their clbit_index, create a new register slot for every conditional gate
         # and add a bfunc to map the creg=val mask onto the gating register bit.
 
-        is_conditional_experiment = any(op.control for (op, qargs, cargs) in circuit.data)
+        is_conditional_experiment = any(op.condition for (op, qargs, cargs) in circuit.data)
         max_conditional_idx = 0
 
         instructions = []
@@ -102,8 +102,8 @@ def assemble_circuits(circuits, run_config, qobj_id, qobj_header):
             # To convert to a qobj-style conditional, insert a bfunc prior
             # to the conditional instruction to map the creg ?= val condition
             # onto a gating register bit.
-            if hasattr(instruction, '_control'):
-                ctrl_reg, ctrl_val = instruction._control
+            if hasattr(instruction, '_condition'):
+                ctrl_reg, ctrl_val = instruction._condition
                 mask = 0
                 val = 0
                 for clbit in clbit_labels:
@@ -116,13 +116,14 @@ def assemble_circuits(circuits, run_config, qobj_id, qobj_header):
                                                        mask="0x%X" % mask,
                                                        relation='==',
                                                        val="0x%X" % val,
-                                                       register=conditional_reg_idx)
+                                                       register=conditional_reg_idx,
+                                                       validate=False)
                 instructions.append(conversion_bfunc)
                 instruction.conditional = conditional_reg_idx
                 max_conditional_idx += 1
-                # Delete control attribute now that we have replaced it with
+                # Delete condition attribute now that we have replaced it with
                 # the conditional and bfuc
-                del instruction._control
+                del instruction._condition
 
             instructions.append(instruction)
 

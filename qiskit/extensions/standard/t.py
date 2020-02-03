@@ -12,8 +12,6 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-# pylint: disable=invalid-name
-
 """
 T=sqrt(S) phase gate or its inverse.
 """
@@ -22,7 +20,6 @@ from qiskit.circuit import Gate
 from qiskit.circuit import QuantumCircuit
 from qiskit.circuit import QuantumRegister
 from qiskit.qasm import pi
-from qiskit.extensions.standard.u1 import U1Gate
 
 
 class TGate(Gate):
@@ -36,6 +33,7 @@ class TGate(Gate):
         """
         gate t a { u1(pi/4) a; }
         """
+        from qiskit.extensions.standard.u1 import U1Gate
         definition = []
         q = QuantumRegister(1, "q")
         rule = [
@@ -66,6 +64,7 @@ class TdgGate(Gate):
         """
         gate t a { u1(pi/4) a; }
         """
+        from qiskit.extensions.standard.u1 import U1Gate
         definition = []
         q = QuantumRegister(1, "q")
         rule = [
@@ -85,7 +84,7 @@ class TdgGate(Gate):
                             [0, (1-1j) / numpy.sqrt(2)]], dtype=complex)
 
 
-def t(self, q):
+def t(self, q):  # pylint: disable=invalid-name
     """Apply T to q."""
     return self.append(TGate(), [q], [])
 

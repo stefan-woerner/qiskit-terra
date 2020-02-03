@@ -16,6 +16,7 @@
 
 import unittest
 import numpy as np
+from numpy.testing import assert_allclose
 
 from qiskit import QiskitError
 from qiskit.quantum_info.states import DensityMatrix
@@ -30,12 +31,12 @@ class TestPTM(ChannelTestCase):
         """Test initialization"""
         mat4 = np.eye(4) / 2.0
         chan = PTM(mat4)
-        self.assertAllClose(chan.data, mat4)
+        assert_allclose(chan.data, mat4)
         self.assertEqual(chan.dim, (2, 2))
 
         mat16 = np.eye(16) / 4
         chan = PTM(mat16)
-        self.assertAllClose(chan.data, mat16)
+        assert_allclose(chan.data, mat16)
         self.assertEqual(chan.dim, (4, 4))
 
         # Wrong input or output dims should raise exception
@@ -113,8 +114,29 @@ class TestPTM(ChannelTestCase):
         self.assertEqual(chan.dim, (2, 2))
         self.assertEqual(rho.evolve(chan), rho_targ)
 
+    def test_dot(self):
+        """Test dot method."""
+        # Random input test state
+        rho = DensityMatrix(self.rand_rho(2))
+
+        # UnitaryChannel evolution
+        chan1 = PTM(self.ptmX)
+        chan2 = PTM(self.ptmY)
+        rho_targ = rho.evolve(PTM(self.ptmZ))
+        self.assertEqual(rho.evolve(chan2.dot(chan1)), rho_targ)
+        self.assertEqual(rho.evolve(chan2 * chan1), rho_targ)
+
+        # Compose random
+        ptm1 = self.rand_matrix(4, 4, real=True)
+        ptm2 = self.rand_matrix(4, 4, real=True)
+        chan1 = PTM(ptm1, input_dims=2, output_dims=2)
+        chan2 = PTM(ptm2, input_dims=2, output_dims=2)
+        rho_targ = rho.evolve(chan1).evolve(chan2)
+        self.assertEqual(rho.evolve(chan2.dot(chan1)), rho_targ)
+        self.assertEqual(rho.evolve(chan2 * chan1), rho_targ)
+
     def test_compose_front(self):
-        """Test front compose method."""
+        """Test deprecated front compose method."""
         # Random input test state
         rho = DensityMatrix(self.rand_rho(2))
 
@@ -248,13 +270,14 @@ class TestPTM(ChannelTestCase):
         targ = PTM(val * self.ptmI)
         self.assertEqual(chan.multiply(val), targ)
         self.assertEqual(val * chan, targ)
-        self.assertEqual(chan * val, targ)
 
     def test_multiply_except(self):
         """Test multiply method raises exceptions."""
         chan = PTM(self.ptmI)
         self.assertRaises(QiskitError, chan.multiply, 's')
+        self.assertRaises(QiskitError, chan.__rmul__, 's')
         self.assertRaises(QiskitError, chan.multiply, chan)
+        self.assertRaises(QiskitError, chan.__rmul__, chan)
 
     def test_negate(self):
         """Test negate method"""

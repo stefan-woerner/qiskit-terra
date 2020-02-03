@@ -16,6 +16,7 @@
 # pylint: disable=unused-variable
 # pylint: disable=missing-param-doc
 # pylint: disable=missing-type-doc
+# pylint: disable=no-member
 
 """
 Generic isometries from m to n qubits.
@@ -50,10 +51,10 @@ class Isometry(Instruction):
             significant than the input qubits).
 
         num_ancillas_zero (int): number of additional ancillas that start in the state ket(0)
-            (the n-m ancillas required for providing the ouput of the isometry are
+            (the n-m ancillas required for providing the output of the isometry are
             not accounted for here).
 
-        num_ancillas_dirty (int): number of additional ancillas that start in an arbitaray state
+        num_ancillas_dirty (int): number of additional ancillas that start in an arbitrary state
     """
 
     # Notation: In the following decomposition we label the qubit by
@@ -138,7 +139,7 @@ class Isometry(Instruction):
             # remove first column (which is now stored in diag)
             remaining_isometry = remaining_isometry[:, 1:]
         if len(diag) > 1 and not _diag_is_identity_up_to_global_phase(diag):
-            circuit.diagGate(np.conj(diag).tolist(), q_input)
+            circuit.diag_gate(np.conj(diag).tolist(), q_input)
         return circuit
 
     def _decompose_column(self, circuit, q, diag, remaining_isometry, column_index):
@@ -416,7 +417,7 @@ def _get_qubits_by_label(labels, qubits, num_qubits):
 
 
 def _reverse_qubit_oder(qubits):
-    return [q for q in reversed(qubits)]
+    return list(reversed(qubits))
 
 
 # Convert list of binary digits to integer

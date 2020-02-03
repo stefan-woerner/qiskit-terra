@@ -52,13 +52,15 @@ class FrameChange(Command):
         Returns:
             bool: are self and other equal
         """
-        if type(self) is type(other) and \
-                self.phase == other.phase:
-            return True
-        return False
+        return super().__eq__(other) and (self.phase == other.phase)
+
+    def __hash__(self):
+        return hash((super().__hash__(), self.phase))
 
     def __repr__(self):
-        return '%s(%s, phase=%.3f)' % (self.__class__.__name__, self.name, self.phase)
+        return '%s(phase=%.3f, name="%s")' % (self.__class__.__name__,
+                                              self.phase,
+                                              self.name)
 
     # pylint: disable=arguments-differ
     def to_instruction(self, channel: PulseChannel, name=None) -> 'FrameChangeInstruction':
@@ -71,4 +73,3 @@ class FrameChangeInstruction(Instruction):
 
     def __init__(self, command: FrameChange, channel: PulseChannel, name=None):
         super().__init__(command, channel, name=name)
-        self._buffer = 0

@@ -15,6 +15,8 @@
 """
 Persistent value.
 """
+import warnings
+
 from typing import Optional
 
 from qiskit.pulse.channels import PulseChannel
@@ -43,6 +45,9 @@ class PersistentValue(Command):
         if abs(value) > 1:
             raise PulseError("Absolute value of PV amplitude exceeds 1.")
 
+        warnings.warn("The PersistentValue command is deprecated. Use qiskit.pulse.ConstantPulse "
+                      "instead.", DeprecationWarning)
+
         self._value = complex(value)
         self._name = PersistentValue.create_name(name)
 
@@ -51,7 +56,7 @@ class PersistentValue(Command):
         """Persistent value amplitude."""
         return self._value
 
-    def __eq__(self, other: 'PersistentValue'):
+    def __eq__(self, other: 'PersistentValue') -> bool:
         """Two PersistentValues are the same if they are of the same type
         and have the same value.
 
@@ -61,13 +66,15 @@ class PersistentValue(Command):
         Returns:
             bool: are self and other equal
         """
-        if type(self) is type(other) and \
-                self.value == other.value:
-            return True
-        return False
+        return super().__eq__(other) and self.value == other.value
+
+    def __hash__(self):
+        return hash((super().__hash__(), self.value))
 
     def __repr__(self):
-        return '%s(%s, value=%s)' % (self.__class__.__name__, self.name, self.value)
+        return '%s(value=%s, name="%s")' % (self.__class__.__name__,
+                                            self.value,
+                                            self.name)
 
     # pylint: disable=arguments-differ
     def to_instruction(self, channel: PulseChannel, name=None) -> 'PersistentValueInstruction':
