@@ -140,10 +140,10 @@ class NoiseAdaptiveLayout(AnalysisPass):
         number of CNOTs between the pair.
         """
         idx = 0
-        for q in dag.qubits():
+        for q in dag.qubits:
             self.qarg_to_id[q.register.name + str(q.index)] = idx
             idx += 1
-        for gate in dag.twoQ_gates():
+        for gate in dag.two_qubit_ops():
             qid1 = self._qarg_to_id(gate.qargs[0])
             qid2 = self._qarg_to_id(gate.qargs[1])
             min_q = min(qid1, qid2)
@@ -252,7 +252,7 @@ class NoiseAdaptiveLayout(AnalysisPass):
                 self.prog2hw[qid] = self.available_hw_qubits[0]
                 self.available_hw_qubits.remove(self.prog2hw[qid])
         layout = Layout()
-        for q in dag.qubits():
+        for q in dag.qubits:
             pid = self._qarg_to_id(q)
             hwid = self.prog2hw[pid]
             layout[q] = hwid
